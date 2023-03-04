@@ -1,6 +1,20 @@
-a = [1,5,3,7,1]
-b = ['a','b','c','d','e']
+class Iterator:
+    def __init__(self, it):
+        self.it = it
+        print("Iterator init called")
+    
+    def __next__(self):
+        print("Iterator next called")
+        return next(self.it)
 
+class IterObj:
+    def __init__(self, it):
+        self.it = it
+        print("IterObj init called")
+    
+    def __iter__(self):
+        print("IterObj iter called")
+        return Iterator(iter(self.it))
 
-for i,j in zip(a,b):
-    print(j*i, end="\r")
+for i in Iterator([1,2,3]):
+    print(i)
