@@ -1,10 +1,4 @@
 import time
-import platform
-
-# todo: 时间
-# todo: print功能
-# todo: half strbar 1/4 3/4黑块
-# todo: 空格覆盖多余的字符
 
 def iter_count(file_name):
     from itertools import (takewhile, repeat)
@@ -14,123 +8,194 @@ def iter_count(file_name):
         return sum(buf.count('\n') for buf in buf_gen)
 
 class ProgressBarIter:
-    __iterator_list = []
-    __message        = ""
-    __itered_stage   = [True, True]
+    __iter_list      = []
+    # attr can set
     __descrip        = ''
-    __bar_len        = 20
-    __reprint        = False
+    __bar_len        = 30
+    __reprint        = True
+    __linefeed       = False
     __end            = ''
-    __cnt            = [0, 0]
-    __total          = [1, 1]
-    __pb_len         = [-1, -1]
+    __message        = ''
+    # internal attr
+    __itered_stage   = [True, True]
+    __cnt            = [-1,  0]  # cnt[1] default is 0, when init stage1, set it to -1
+    __total          = [ 0,  1]  # total[1] default is 1, when init stage1, set it to len(stage1)
+    __bar_str        = ''
+    # time
+    __time_start     = -1
+    __time_rec       = -1
+    __time_str       = ''
 
     def __init__(self, iter_obj, **kwargs):
-        if len(ProgressBarIter.__iterator_list) == 2:
-            raise RecursionError("max progress bar recursion depth is 2")
+        if len(ProgressBarIter.__iter_list) == 2:
+            raise RecursionError("maximum recursion depth of ProgressBar is 2")
         
-        ProgressBarIter.__iterator_list.append(iter(iter_obj))
+        iterator = iter(iter_obj)
+        if not isinstance(iterator, ProgressBarIter):
+            ProgressBarIter.__iter_list.append(iterator)
+        self.__stage    = len(ProgressBarIter.__iter_list) - 1
         
-        self.__stage = len(ProgressBarIter.__iterator_list)
-        ProgressBarIter.__itered_stage[self.__stage-1] = False
-        ProgressBarIter.__total[self.__stage-1]  = self.__get_length(iter_obj)
-        ProgressBarIter.__total[0] = ProgressBarIter.__total[0] * ProgressBarIter.__total[1]
-        ProgressBarIter.set_attr(**kwargs)
+        ProgressBarIter.__itered_stage[self.__stage] = False
+        ProgressBarIter.__cnt[self.__stage]          = -1
+        ProgressBarIter.__total[self.__stage]        = self.__get_length(iter_obj)
+        ProgressBarIter.__set_attr(**kwargs)
 
     def __next__(self):
         ProgressBarIter.__update(self.__stage)
         try:
-            next_tgt = next(ProgressBarIter.__iterator_list[self.__stage-1])
+            next_tgt = next(ProgressBarIter.__iter_list[self.__stage])
         except StopIteration:
-            ProgressBarIter.__itered_stage[self.__stage-1] = True
-            if all(ProgressBarIter.__itered_state):
-                ProgressBarIter.__iterator_list = []
+            ProgressBarIter.__iter_list.pop(self.__stage)
+            ProgressBarIter.__itered_stage[self.__stage] = True
+            ProgressBarIter.__cnt[self.__stage]          = self.__stage - 1
+
+            if all(ProgressBarIter.__itered_stage):
+                ProgressBarIter.__set_attr(descrip='', 
+                                           bar_len=30, 
+                                           reprint=True, 
+                                           linefeed=False,
+                                           message='')
+                ProgressBarIter.__total      = [0, 1]
+                ProgressBarIter.__bar_str    = ''
+                ProgressBarIter.__time_start = -1
+                ProgressBarIter.__time_rec   = -1
+                ProgressBarIter.__time_str   = ''
+                None if ProgressBarIter.__linefeed else print()
+
             raise StopIteration
         else:
             return next_tgt
     
+    @staticmethod
+    def __time2str(t):
+        if t == -1:
+            tstr = 'calculating'
+        elif t > 3600:
+            h = int(t / 3600)
+            m = int((t % 3600) / 60)
+            s = int(t % 60)
+            tstr = '{0}h{1:2d}m{2:2d}s'.format(h, m, s)
+        elif t > 60:
+            m = int(t / 60)
+            s = int(t % 60)
+            tstr = '{0:2d}m{1:2d}s'.format(m, s)
+        else:
+            s = int(t)
+            tstr = '{:2d}s'.format(s)
+        return tstr
+    
+    @classmethod
+    def __time_update(cls, cnt, total):
+        if cls.__time_start == -1:
+            cls.__time_start = time.time()
+            cls.__time_rec   = cls.__time_start
+            cls.__time_str   = f" [TS:{cls.__time2str(0)}, ETA:{cls.__time2str(-1)}] "
+            return True
+        time_curr  = time.time()
+        if time_curr - cls.__time_rec > 0.5:
+            total, cnt        = (0, 1) if cnt <= 0 else (total, cnt)
+            time_spend        = time_curr - cls.__time_start
+            time_eta          = -1 if cnt == 0 else time_spend * (total/cnt - 1)
+            cls.__time_str    = f" [TS:{cls.__time2str(time_spend)}, ETA:{cls.__time2str(time_eta)}] "
+            cls.__time_rec    = time.time()
+            return True
+        return False
+    
     @classmethod
     def __update(cls, stage):
-        cnt       = cls.__cnt[0] * cls.__total[1] + cls.__cnt[1]
-        total     = cls.__total[0]
-        pb_len    = cls.__pb_len
-        pb_len[0] = round(cnt / total) * cls.__bar_len
-        pb_len[1] = round(cls.__cnt[1] / cls.__total[1]) * pb_len[0]
+        # count ++
+        cls.__cnt[stage] += 1
+        
+        cnt               = cls.__cnt[0] * cls.__total[1] + cls.__cnt[1]
+        total             = cls.__total[0] * cls.__total[1]
 
-        bar_str   = '\r' + cls.__descrip + '0' * pb_len[1] + \
-                     '0' * (pb_len[0] - pb_len[1]) + \
-                     ' ' * (cls.__bar_len - pb_len[0]) + \
-                     cls.__message
-            
-        if stage == len(cls.__iterator_list) and (   cls.__reprint 
-                                                  or pb_len != cls.__pb_len
+        time_updated      = cls.__time_update(cnt, total)
+        time_str          = cls.__time_str
+
+        pb_len            = [0, 0]
+        pb_len[0]         = round(cnt / total * cls.__bar_len)
+        pb_len[1]         = round(cls.__cnt[1] / cls.__total[1] * pb_len[0]) if stage else pb_len[0]
+
+        bar_str   = '\r' + cls.__descrip + '|' + '#' * pb_len[1] + \
+                    '>' * (pb_len[0] - pb_len[1]) + \
+                    '-' * (cls.__bar_len - pb_len[0]) + '|' + \
+                    f" ({cls.__cnt[0]}/{cls.__total[0]})" + time_str + cls.__message
+        
+        bs_len    = len(bar_str)
+        if len(cls.__bar_str) > bs_len:
+            bar_str = bar_str + ' ' * (len(cls.__bar_str) - bs_len)
+
+        if (stage+1) == len(cls.__iter_list) and (   cls.__reprint 
+                                                  or time_updated
                                                   or cnt == total):
             print(bar_str, end=cls.__end)
-
-        cls.__cnt[stage-1] += cls.__cnt[stage-1]
-        cls.__pb_len        = pb_len
+        
+        cls.__bar_str     = bar_str[:bs_len]
     
     @classmethod
-    def set_attr(cls, descrip='', bar_len=20, reprint=False, line_feed=False):
-        cls.__descrip   = descrip
-        cls.__bar_len   = bar_len
-        cls.__reprint   = reprint
-        cls.__end       = '\n' if line_feed else ''
+    def __set_attr(cls, **kwargs):
+        cls.__descrip   = kwargs["descrip"]  if "descrip"  in kwargs.keys() else cls.__descrip
+        cls.__bar_len   = kwargs["bar_len"]  if "bar_len"  in kwargs.keys() else cls.__bar_len
+        cls.__reprint   = kwargs["reprint"]  if "reprint"  in kwargs.keys() else cls.__reprint
+        cls.__message   = kwargs["message"]  if "message"  in kwargs.keys() else cls.__message
+        cls.__linefeed = kwargs["linefeed"] if "linefeed" in kwargs.keys() else cls.__linefeed
+        cls.__end       = '\n' if cls.__linefeed else ''
     
-    @staticmethod
-    def __get_length(obj):
+    @classmethod
+    def message(cls, message):
+        cls.__set_attr(message=str(message))
+    
+    @classmethod
+    def print(cls, *args, **kwargs):
+        None if cls.__linefeed else print("\r" + ' ' * len(cls.__bar_str) + "\r", end='')
+        print(*args, **kwargs)
+        None if cls.__linefeed else print(cls.__bar_str, end=cls.__end)
+    
+    def __get_length(self, obj):
         if hasattr(obj, "__len__"):
             return len(obj)
-        if isinstance(obj, file):
+        if self.isfilelike(obj):
             return iter_count(obj)
         raise Exception(f"iterator object {obj} has no attribute '__len__'")
-
-
+    
+    @staticmethod
+    def isfilelike(f):
+        try:
+            if isinstance(getattr(f, "read"), collections.Callable) \
+                    and isinstance(getattr(f, "write"), collections.Callable) \
+                            and isinstance(getattr(f, "close"), collections.Callable):
+                return True
+        except AttributeError:
+            pass
+        return False
 
 
 class ProgressBar:
-    def __init__(self, iter_obj=None, descrip='', bar_len=20, reprint=False, line_feed=False):
-        self.__iter_obj     = iter_obj
-        self.__descrip      = descrip
-        self.__bar_len      = bar_len
-        self.__reprint      = reprint
-        self.__line_feed    = line_feed
+    def __init__(self, iter_obj=None, **kwargs):
+        self.__iter_obj = iter_obj
+        self.__kwargs   = kwargs
 
     def __iter__(self):
-        return ProgressBarIter(self.__iter_obj, 
-                               descrip=self.__descrip,
-                               bar_len=self.__bar_len,
-                               reprint=self.__reprint,
-                               line_feed=self.__line_feed)
+        return ProgressBarIter(self.__iter_obj, **self.__kwargs)
 
-    def __call__(self, iter_obj=None):
-        if iter_obj:
-            self.__iter_obj = iter_obj
+    def __call__(self, iter_obj=None, **kwargs):
+        self.__iter_obj = iter_obj if iter_obj and iter_obj != self else self.__iter_obj
+        for k, v in kwargs.items():
+            self.__kwargs[k] = v
+        return self
+    
+    def __len__(self):
+        return len(self.__iter_obj)
+    
+    def set(self, **kwargs):
+        for k, v in kwargs.items():
+            self.__kwargs[k] = v
         return self
     
     @staticmethod
-    def __get_length(obj):
-        if hasattr(obj, "__len__"):
-            return len(obj)
-        if isinstance(obj, file):
-            return iter_count(obj)
-        raise Exception(f"iterator object {obj} has no attribute '__len__'")
-
-    def __print_bar(self):
-        
-        pass
-
-    def message(self, message:str):
-        self.__msg = message
+    def message(message):
+        return ProgressBarIter.message(message)
     
-    def update(self, message:str=''):
-        if message:
-            self.__msg = message
-
-
-        if self.__reprint or 
-    
-    def subprocess(self, cnt, total):
-
-
-
+    @staticmethod
+    def print(*args, **kwargs):
+        return ProgressBarIter.print(*args, **kwargs)

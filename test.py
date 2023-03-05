@@ -1,20 +1,13 @@
-class Iterator:
-    def __init__(self, it):
-        self.it = it
-        print("Iterator init called")
-    
-    def __next__(self):
-        print("Iterator next called")
-        return next(self.it)
+import time
+import tqdm
+from progressbar import ProgressBar
 
-class IterObj:
-    def __init__(self, it):
-        self.it = it
-        print("IterObj init called")
-    
-    def __iter__(self):
-        print("IterObj iter called")
-        return Iterator(iter(self.it))
+pb = ProgressBar("abcdefghigklmnopqrstuvwxyz")
+for i in ProgressBar("1234567890"):
+    for j in pb:
+        time.sleep(0.1)
+        ProgressBar.message(f"iterating... {i}, {j}")
 
-for i in Iterator([1,2,3]):
-    print(i)
+for i in pb:
+    pb.message("iterating")
+    time.sleep(0.5)
