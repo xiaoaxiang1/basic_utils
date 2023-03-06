@@ -89,14 +89,14 @@ class ProgressBarIter:
         if cls.__time_start == -1:
             cls.__time_start = time.time()
             cls.__time_rec   = cls.__time_start
-            cls.__time_str   = f" [TS:{cls.__time2str(0)}, ETA:{cls.__time2str(-1)}] "
+            cls.__time_str   = f" [TS:{cls.__time2str(0)} | ETA:{cls.__time2str(-1)}] "
             return True
         time_curr  = time.time()
         if time_curr - cls.__time_rec > 0.5:
             total, cnt        = (0, 1) if cnt <= 0 else (total, cnt)
             time_spend        = time_curr - cls.__time_start
             time_eta          = -1 if cnt == 0 else time_spend * (total/cnt - 1)
-            cls.__time_str    = f" [TS:{cls.__time2str(time_spend)}, ETA:{cls.__time2str(time_eta)}] "
+            cls.__time_str    = f" [TS:{cls.__time2str(time_spend)} | ETA:{cls.__time2str(time_eta)}] "
             cls.__time_rec    = time.time()
             return True
         return False
@@ -108,6 +108,7 @@ class ProgressBarIter:
         
         cnt               = cls.__cnt[0] * cls.__total[1] + cls.__cnt[1]
         total             = cls.__total[0] * cls.__total[1]
+        cnt               = total if cnt > total else cnt
 
         time_updated      = cls.__time_update(cnt, total)
         time_str          = cls.__time_str
@@ -116,21 +117,25 @@ class ProgressBarIter:
         pb_len[0]         = round(cnt / total * cls.__bar_len)
         pb_len[1]         = round(cls.__cnt[1] / cls.__total[1] * pb_len[0]) if stage else pb_len[0]
 
-        bar_str   = '\r' + cls.__descrip + '|' + '#' * pb_len[1] + \
-                    '>' * (pb_len[0] - pb_len[1]) + \
-                    '-' * (cls.__bar_len - pb_len[0]) + '|' + \
-                    f" ({cls.__cnt[0]}/{cls.__total[0]})" + time_str + cls.__message
         
-        bs_len    = len(bar_str)
-        if len(cls.__bar_str) > bs_len:
-            bar_str = bar_str + ' ' * (len(cls.__bar_str) - bs_len)
 
         if (stage+1) == len(cls.__iter_list) and (   cls.__reprint 
                                                   or time_updated
                                                   or cnt == total):
+            
+            pct_str   = "{:d}% ({}/{})".format(round(cnt/total*100), cls.__cnt[0], cls.__total[0])
+            bar_str   = "\r" + cls.__descrip + '|' + '#' * pb_len[1] + \
+                        '>'  * (pb_len[0] - pb_len[1]) + \
+                        '-'  * (cls.__bar_len - pb_len[0]) + '|' + \
+                        pct_str + time_str + cls.__message
+            
+            bs_len    = len(bar_str)
+            if len(cls.__bar_str) > bs_len:
+                bar_str = bar_str + ' ' * (len(cls.__bar_str) - bs_len)
+            cls.__bar_str     = bar_str[:bs_len]
+            
             print(bar_str, end=cls.__end)
-        
-        cls.__bar_str     = bar_str[:bs_len]
+            
     
     @classmethod
     def __set_attr(cls, **kwargs):
@@ -199,3 +204,6 @@ class ProgressBar:
     @staticmethod
     def print(*args, **kwargs):
         return ProgressBarIter.print(*args, **kwargs)
+
+def __init__():
+    return ProgressBar
