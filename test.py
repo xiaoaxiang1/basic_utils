@@ -2,10 +2,11 @@ import time
 import tqdm
 from progressbar import ProgressBar
 
-pb = ProgressBar("abcdefghigklmnopqrstuvwxyz")
-for i in ProgressBar("1234567890"):
+pb = ProgressBar("abcdefghighijklmnopqrstvuwxyz")
+for i in ProgressBar(range(10)):
     for j in pb:
-        time.sleep(0.1)
+        time.sleep(0.05)
+        ProgressBar.print("hello world")
         ProgressBar.message(f"iterating... {i}, {j}")
 
 for i in pb:

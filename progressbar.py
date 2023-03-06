@@ -68,20 +68,21 @@ class ProgressBarIter:
     
     @staticmethod
     def __time2str(t):
+        t = round(t)
         if t == -1:
-            tstr = 'calculating'
+            tstr = '--'
         elif t > 3600:
-            h = int(t / 3600)
-            m = int((t % 3600) / 60)
-            s = int(t % 60)
-            tstr = '{0}h{1:2d}m{2:2d}s'.format(h, m, s)
+            h = t // 3600
+            m = (t % 3600) // 60
+            s = t % 60
+            tstr = '{}h{:d}m{:d}s'.format(h, m, s)
         elif t > 60:
-            m = int(t / 60)
-            s = int(t % 60)
-            tstr = '{0:2d}m{1:2d}s'.format(m, s)
+            m = t // 60
+            s = t % 60
+            tstr = '{:d}m{:d}s'.format(m, s)
         else:
-            s = int(t)
-            tstr = '{:2d}s'.format(s)
+            s = t
+            tstr = '{:d}s'.format(s)
         return tstr
     
     @classmethod
