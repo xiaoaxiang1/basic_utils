@@ -90,14 +90,14 @@ class ProgressBarIter:
         if cls.__time_start == -1:
             cls.__time_start = time.time()
             cls.__time_rec   = cls.__time_start
-            cls.__time_str   = f" [TS:{cls.__time2str(0)} | ETA:{cls.__time2str(-1)}] "
+            cls.__time_str   = f" [TS:{cls.__time2str(0)}|ETA:{cls.__time2str(-1)}] "
             return True
         time_curr  = time.time()
         if time_curr - cls.__time_rec > 0.5:
             total, cnt        = (0, 1) if cnt <= 0 else (total, cnt)
             time_spend        = time_curr - cls.__time_start
             time_eta          = -1 if cnt == 0 else time_spend * (total/cnt - 1)
-            cls.__time_str    = f" [TS:{cls.__time2str(time_spend)} | ETA:{cls.__time2str(time_eta)}] "
+            cls.__time_str    = f" [TS:{cls.__time2str(time_spend)}|ETA:{cls.__time2str(time_eta)}] "
             cls.__time_rec    = time.time()
             return True
         return False
