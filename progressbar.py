@@ -31,8 +31,9 @@ class ProgressBarIter:
             raise RecursionError("maximum recursion depth of ProgressBar is 2")
         
         iterator = iter(iter_obj)
-        if not isinstance(iterator, ProgressBarIter):
-            ProgressBarIter.__iter_list.append(iterator)
+        #if not isinstance(iterator, ProgressBarIter):
+        ProgressBarIter.__iter_list.append(iterator)
+        
         self.__stage    = len(ProgressBarIter.__iter_list) - 1
         
         ProgressBarIter.__itered_stage[self.__stage] = False
@@ -182,6 +183,10 @@ class ProgressBar:
         self.__kwargs   = kwargs
 
     def __iter__(self):
+        if isinstance(self.__iter_obj, ProgressBar):
+            return iter(self.__iter_obj)
+        if isinstance(self.__iter_obj, ProgressBarIter):
+            return self.__iter_obj
         return ProgressBarIter(self.__iter_obj, **self.__kwargs)
 
     def __call__(self, iter_obj=None, **kwargs):
@@ -205,6 +210,3 @@ class ProgressBar:
     @staticmethod
     def print(*args, **kwargs):
         return ProgressBarIter.print(*args, **kwargs)
-
-def __init__():
-    return ProgressBar
