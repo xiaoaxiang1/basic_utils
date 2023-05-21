@@ -8,18 +8,23 @@ def iter_count(file_name):
         return sum(buf.count('\n') for buf in buf_gen)
 
 class ProgressBarIter:
+    __attr           = {"descrip": '', "bar_len": 30, "reprint": True, "linefeed": False, "message": ''}
     __iter_list      = []
     # attr can set
-    __descrip        = ''
-    __bar_len        = 30
-    __reprint        = True
-    __linefeed       = False
+    __descrip        = __attr["descrip"]
+    __bar_len        = __attr["bar_len"]
+    __reprint        = __attr["reprint"]
+    __linefeed       = __attr["linefeed"]
     __end            = ''
-    __message        = ''
+    __message        = __attr["message"]
     # internal attr
-    __itered_stage   = [True, True]
-    __cnt            = [-1,  0]  # cnt[1] default is 0, when init stage1, set it to -1
-    __total          = [ 0,  1]  # total[1] default is 1, when init stage1, set it to len(stage1)
+    #__itered_stage   = [True, True]
+    __cnt            = []  # cnt[1] default is 0, when init stage1, set it to -1
+    __cnt_rec        = []
+    __cnt_val        = 0
+    __total          = []  # total[1] default is 1, when init stage1, set it to len(stage1)
+    __total_rec      = []
+    __total_val      = 1
     __bar_str        = ''
     # time
     __time_start     = -1
@@ -27,45 +32,40 @@ class ProgressBarIter:
     __time_str       = ''
 
     def __init__(self, iter_obj, **kwargs):
-        if len(ProgressBarIter.__iter_list) == 2:
-            raise RecursionError("maximum recursion depth of ProgressBar is 2")
         
         iterator = iter(iter_obj)
-        #if not isinstance(iterator, ProgressBarIter):
-        ProgressBarIter.__iter_list.append(iterator)
-        
-        self.__stage    = len(ProgressBarIter.__iter_list) - 1
-        
-        ProgressBarIter.__itered_stage[self.__stage] = False
-        ProgressBarIter.__cnt[self.__stage]          = -1
-        ProgressBarIter.__total[self.__stage]        = self.__get_length(iter_obj)
-        ProgressBarIter.__set_attr(**kwargs)
+        if not isinstance(iterator, ProgressBarIter):
+            ProgressBarIter.__iter_list.append(iterator)
+            ProgressBarIter.__cnt.append(-1)
+            ProgressBarIter.__total.append(max(0, self.__get_length(iter_obj)))
+            ProgressBarIter.__set_attr(**kwargs)
 
     def __next__(self):
-        ProgressBarIter.__update(self.__stage)
         try:
-            next_tgt = next(ProgressBarIter.__iter_list[self.__stage])
-        except StopIteration:
-            ProgressBarIter.__iter_list.pop(self.__stage)
-            ProgressBarIter.__itered_stage[self.__stage] = True
-            ProgressBarIter.__cnt[self.__stage]          = self.__stage - 1
-
-            if all(ProgressBarIter.__itered_stage):
-                ProgressBarIter.__set_attr(descrip='', 
-                                           bar_len=30, 
-                                           reprint=True, 
-                                           linefeed=False,
-                                           message='')
-                ProgressBarIter.__total      = [0, 1]
-                ProgressBarIter.__bar_str    = ''
-                ProgressBarIter.__time_start = -1
-                ProgressBarIter.__time_rec   = -1
-                ProgressBarIter.__time_str   = ''
-                None if ProgressBarIter.__linefeed else print()
-
-            raise StopIteration
+            ProgressBarIter.__update()
+            next_tgt = next(ProgressBarIter.__iter_list[-1])
+        except Exception as e:
+            ProgressBarIter.__reset()
+            raise e
         else:
             return next_tgt
+    
+    @classmethod
+    def __reset(cls):
+        cls.__iter_list.pop()
+        cls.__cnt.pop()
+        cls.__total.pop()
+        if not cls.__iter_list:
+            cls.__set_attr(**cls.__attr)
+            cls.__cnt_rec    = []
+            cls.__cnt_val    = 0
+            cls.__total_rec  = []
+            cls.__total_val  = 1
+            cls.__bar_str    = ''
+            cls.__time_start = -1
+            cls.__time_rec   = -1
+            cls.__time_str   = ''
+            None if cls.__linefeed else print()
     
     @staticmethod
     def __time2str(t):
@@ -104,24 +104,39 @@ class ProgressBarIter:
         return False
     
     @classmethod
-    def __update(cls, stage):
-        # count ++
-        cls.__cnt[stage] += 1
+    def __update(cls):
+        cls.__cnt[-1] += 1
         
-        cnt               = cls.__cnt[0] * cls.__total[1] + cls.__cnt[1]
-        total             = cls.__total[0] * cls.__total[1]
-        cnt               = total if cnt > total else cnt
+        if cls.__total_rec != cls.__total or cls.__cnt_rec != cls.__cnt:
+            cls.__cnt_val   = 0
+            cls.__total_val = 1
+            
+            for c, t in zip(cls.__cnt[::-1], cls.__total[::-1]):
+                cls.__cnt_val   = c * cls.__total_val + cls.__cnt_val
+                cls.__total_val = t * cls.__total_val
+                
+            
+            cls.__cnt_rec   = cls.__cnt.copy()
+            cls.__total_rec = cls.__total.copy()
+        else:
+            cls.__cnt_val += 1
+        
+        cnt               = min(cls.__cnt_val, cls.__total_val)
+        total             = cls.__total_val
+        if total == 0:
+            return
 
         time_updated      = cls.__time_update(cnt, total)
         time_str          = cls.__time_str
 
         pb_len            = [0, 0]
         pb_len[0]         = round(cnt / total * cls.__bar_len)
-        pb_len[1]         = round(cls.__cnt[1] / cls.__total[1] * pb_len[0]) if stage else pb_len[0]
+        pb_len[1]         = round(cls.__cnt[-1] / cls.__total[-1] * pb_len[0]) if len(cls.__iter_list) > 1 else pb_len[0]
 
         
 
-        if (stage+1) == len(cls.__iter_list) and (   cls.__reprint 
+        #if (stage+1) == len(cls.__iter_list) and (   cls.__reprint 
+        if                                        (  cls.__reprint   
                                                   or time_updated
                                                   or cnt == total):
             
