@@ -43,12 +43,10 @@ class ProgressBarIter:
     def __next__(self):
         try:
             ProgressBarIter.__update()
-            next_tgt = next(ProgressBarIter.__iter_list[-1])
+            return next(ProgressBarIter.__iter_list[-1])
         except Exception as e:
             ProgressBarIter.__reset()
             raise e
-        else:
-            return next_tgt
     
     @classmethod
     def __reset(cls):
