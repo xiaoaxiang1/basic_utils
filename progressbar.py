@@ -103,9 +103,8 @@ class ProgressBarIter:
     
     @classmethod
     def __update(cls):
-        cls.__cnt[-1] += 1
-        
         if cls.__total_rec != cls.__total or cls.__cnt_rec != cls.__cnt:
+            cls.__cnt[-1] += 1
             cls.__cnt_val   = 0
             cls.__total_val = 1
             
@@ -113,12 +112,13 @@ class ProgressBarIter:
                 cls.__cnt_val   = c * cls.__total_val + cls.__cnt_val
                 cls.__total_val = t * cls.__total_val
                 
-            
             cls.__cnt_rec   = cls.__cnt.copy()
             cls.__total_rec = cls.__total.copy()
         else:
-            cls.__cnt_val += 1
-        
+            cls.__cnt[-1]     += 1
+            cls.__cnt_val     += 1
+            cls.__cnt_rec[-1]  = cls.__cnt[-1]
+                    
         cnt               = min(cls.__cnt_val, cls.__total_val)
         total             = cls.__total_val
         if total == 0:
